@@ -82,6 +82,7 @@ export default function Project() {
 
   const socketRef = useRef<Socket | null>(null);
   const seenIdsRef = useRef<Set<string>>(new Set());
+  const bottomRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!projectId) return;
@@ -131,6 +132,9 @@ export default function Project() {
       socketRef.current = null;
     };
   }, [projectId]);
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   const columns = useMemo(
     () => ({
@@ -383,6 +387,7 @@ export default function Project() {
                 <div className="text-slate-100">{m.content}</div>
               </div>
             ))}
+            <div ref={bottomRef} />
           </div>
           {error && <div className="text-pink-300 text-sm mt-1">{error}</div>}
           <div className="mt-3 flex gap-2">
