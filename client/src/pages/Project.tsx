@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { io, Socket } from "socket.io-client";
 import useSWR from "swr";
 import { api } from "../lib/api";
 import { useAuthStore } from "../store/auth";
+
 import TaskModal, { TaskForm } from "../components/TaskModal";
 import { Plus } from "lucide-react";
 import {
@@ -49,6 +50,7 @@ const ROLES: Array<Member["role"]> = ["ADMIN", "MEMBER", "VIEWER"];
 export default function Project() {
   const { id: projectId } = useParams();
   const { user } = useAuthStore();
+  const nav = useNavigate();
 
   const { data: membersResp, mutate: refetchMembers } = useSWR<MembersResp>(
     projectId ? `/members/${projectId}` : null,
@@ -63,7 +65,18 @@ export default function Project() {
       ? "OWNER"
       : rawMembers.find((m) => m.user.id === user?.id)?.role || null;
 
-  const isOwnerOrAdmin = myRole === "OWNER" || myRole === "ADMIN";
+  const isOwner = myRole === "OWNER";
+  const isAdmin = myRole === "ADMIN";
+  const isOwnerOrAdmin = isOwner || isAdmin;
+
+  const canInvite = isOwnerOrAdmin;
+  const canManageRoles = isOwnerOrAdmin;
+  const canRemoveMember = isOwnerOrAdmin;
+  const canAddTask = isOwnerOrAdmin;
+  const canEditTask =
+    myRole === "OWNER" || myRole === "ADMIN" || myRole === "MEMBER";
+  const canDeleteTask = isOwnerOrAdmin;
+  const canDeleteProject = isOwner;
 
   const members = rawMembers.filter((m) => m.user.id !== ownerId);
 
@@ -86,7 +99,6 @@ export default function Project() {
 
   useEffect(() => {
     if (!projectId) return;
-
     (async () => {
       try {
         const [tasksRes, msgsRes] = await Promise.all([
@@ -106,12 +118,10 @@ export default function Project() {
 
   useEffect(() => {
     if (!projectId) return;
-
     if (socketRef.current) {
       socketRef.current.disconnect();
       socketRef.current = null;
     }
-
     const s = io(API_URL, {
       transports: ["websocket"],
       withCredentials: false,
@@ -119,7 +129,6 @@ export default function Project() {
     socketRef.current = s;
 
     s.on("connect", () => s.emit("joinProject", projectId));
-
     s.on("project:message", (msg: Message) => {
       if (seenIdsRef.current.has(msg.id)) return;
       seenIdsRef.current.add(msg.id);
@@ -132,6 +141,7 @@ export default function Project() {
       socketRef.current = null;
     };
   }, [projectId]);
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -181,6 +191,13 @@ export default function Project() {
     } finally {
       setSavingTask(false);
     }
+  };
+
+  const deleteTask = async (taskId: string) => {
+    if (!projectId) return;
+    if (!confirm("Delete this task?")) return;
+    await api.delete(`/tasks/${taskId}`);
+    setTasks((prev) => prev.filter((t) => t.id !== taskId));
   };
 
   const onDragEnd = async (result: DropResult) => {
@@ -242,25 +259,47 @@ export default function Project() {
     await refetchMembers();
   };
 
+  const deleteProject = async () => {
+    if (!projectId) return;
+    if (!confirm("Delete this project permanently?")) return;
+    await api.delete(`/projects/${projectId}`);
+    nav("/");
+  };
+
   return (
     <div className="grid lg:grid-cols-3 gap-6">
       <div className="lg:col-span-2 space-y-4">
         <header className="flex items-center justify-between">
           <h2 className="text-2xl font-bold">Board</h2>
           <div className="flex items-center">
-            <button
-              className="btn-primary flex items-center gap-2"
-              onClick={() => setOpenCreate(true)}
-            >
-              <Plus className="w-4 h-4" />
-              Add Task
-            </button>
-            <button
-              onClick={() => setInviteOpen(true)}
-              className="ml-2 px-4 py-2 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white text-sm"
-            >
-              Invite
-            </button>
+            {canAddTask && (
+              <button
+                className="btn-primary flex items-center gap-2"
+                onClick={() => setOpenCreate(true)}
+              >
+                <Plus className="w-4 h-4" />
+                Add Task
+              </button>
+            )}
+
+            {canInvite && (
+              <button
+                onClick={() => setInviteOpen(true)}
+                className="ml-2 px-4 py-2 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white text-sm"
+              >
+                Invite
+              </button>
+            )}
+
+            {canDeleteProject && (
+              <button
+                onClick={deleteProject}
+                className="ml-2 px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm"
+                title="Delete this project (owner only)"
+              >
+                Delete
+              </button>
+            )}
           </div>
         </header>
 
@@ -299,16 +338,31 @@ export default function Project() {
                                   </div>
                                 )}
                               </div>
-                              <button
-                                className="badge hover:opacity-80"
-                                title="Edit task"
-                                onClick={() => {
-                                  setEditing(t);
-                                  setOpenEdit(true);
-                                }}
-                              >
-                                ✏️
-                              </button>
+
+                              <div className="flex items-center">
+                                {canEditTask && (
+                                  <button
+                                    className="badge hover:opacity-80"
+                                    title="Edit task"
+                                    onClick={() => {
+                                      setEditing(t);
+                                      setOpenEdit(true);
+                                    }}
+                                  >
+                                    ✏️
+                                  </button>
+                                )}
+
+                                {canDeleteTask && (
+                                  <button
+                                    className="badge hover:opacity-80 ml-2 bg-red-500/20 text-red-300"
+                                    title="Delete task"
+                                    onClick={() => deleteTask(t.id)}
+                                  >
+                                    🗑️
+                                  </button>
+                                )}
+                              </div>
                             </div>
                           </div>
                         )}
@@ -343,7 +397,7 @@ export default function Project() {
                 {m.user.name} <span className="text-gray-400">({m.role})</span>
               </div>
 
-              {isOwnerOrAdmin ? (
+              {canManageRoles ? (
                 <div className="flex items-center gap-2">
                   <select
                     className="bg-gray-800 text-gray-100 rounded px-2 py-1"
@@ -359,13 +413,15 @@ export default function Project() {
                     ))}
                   </select>
 
-                  <button
-                    onClick={() => removeMember(m.user.id)}
-                    className="px-2 py-1 rounded bg-red-500 hover:bg-red-600 text-white"
-                    title="Remove member"
-                  >
-                    Remove
-                  </button>
+                  {canRemoveMember && (
+                    <button
+                      onClick={() => removeMember(m.user.id)}
+                      className="px-2 py-1 rounded bg-red-500 hover:bg-red-600 text-white"
+                      title="Remove member"
+                    >
+                      Remove
+                    </button>
+                  )}
                 </div>
               ) : null}
             </div>

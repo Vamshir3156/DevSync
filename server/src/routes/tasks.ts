@@ -1,7 +1,7 @@
 import { Router, Request, Response } from "express";
 import { PrismaClient } from "@prisma/client";
 import { requireAuth } from "../middlewares/auth.js";
-import { getRole, canRead, canWrite } from "../utils/acl.js";
+import { getRole, canRead, canWrite, isAdminish } from "../utils/acl.js";
 
 const prisma = new PrismaClient();
 const router = Router();
@@ -35,7 +35,7 @@ router.post("/", requireAuth, async (req: Request, res: Response) => {
   };
 
   const role = await getRole(userId, projectId);
-  if (!canWrite(role))
+  if (!isAdminish(role))
     return res.status(403).json({ message: "Not authorized" });
 
   if (!title?.trim())
