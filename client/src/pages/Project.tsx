@@ -36,7 +36,7 @@ type Member = {
 };
 
 type MembersResp = {
-  ownerId: string;
+  owner: { id: string; name: string; email: string };
   members: Member[];
 };
 
@@ -57,7 +57,7 @@ export default function Project() {
     fetcher
   );
 
-  const ownerId = membersResp?.ownerId;
+  const ownerId = membersResp?.owner?.id;
   const rawMembers = membersResp?.members || [];
 
   const myRole: "OWNER" | Member["role"] | null =
@@ -381,9 +381,10 @@ export default function Project() {
       <div className="space-y-4">
         <h2 className="text-xl font-semibold mb-3 text-white">Members</h2>
 
-        {user?.id === ownerId && (
-          <div className="text-sm text-emerald-300 bg-emerald-900/30 rounded px-2 py-1 mb-2">
-            You <span className="text-emerald-400">(OWNER)</span>
+        {membersResp?.owner && (
+          <div className="text-sm bg-gray-700/50 rounded px-2 py-1 mb-2 text-gray-200">
+            {membersResp.owner.name}{" "}
+            <span className="text-gray-400">(OWNER)</span>
           </div>
         )}
 

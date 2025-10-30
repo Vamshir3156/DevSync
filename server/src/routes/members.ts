@@ -1,7 +1,7 @@
 import { Router, Request, Response } from "express";
 import { PrismaClient } from "@prisma/client";
 import { requireAuth } from "../middlewares/auth.js";
-import { getRole, isAdminish } from "../utils/acl.js"; // <- from acl.ts
+import { getRole, canRead, isAdminish } from "../utils/acl.js";
 
 const prisma = new PrismaClient();
 const router = Router();
@@ -10,26 +10,23 @@ router.get("/:projectId", requireAuth, async (req: Request, res: Response) => {
   const userId = req.user!.id;
   const { projectId } = req.params;
 
+  const role = await getRole(userId, projectId);
+  if (!canRead(role))
+    return res.status(403).json({ message: "Not authorized" });
+
   const project = await prisma.project.findUnique({
     where: { id: projectId },
-    select: { id: true, ownerId: true, members: { select: { userId: true } } },
+    select: {
+      owner: { select: { id: true, name: true, email: true } },
+      members: {
+        include: { user: { select: { id: true, name: true, email: true } } },
+      },
+    },
   });
   if (!project) return res.status(404).json({ message: "Project not found" });
 
-  const isMember = project.members.some((m) => m.userId === userId);
-  const isOwner = project.ownerId === userId;
-  if (!isOwner && !isMember)
-    return res.status(403).json({ message: "Not authorized" });
-
-  const members = await prisma.member.findMany({
-    where: { projectId },
-    include: { user: { select: { id: true, email: true, name: true } } },
-    orderBy: { user: { name: "asc" } },
-  });
-
-  return res.json({ ownerId: project.ownerId, members });
+  return res.json({ owner: project.owner, members: project.members });
 });
-
 router.post("/:projectId", requireAuth, async (req: Request, res: Response) => {
   const requesterId = req.user!.id;
   const { projectId } = req.params;
