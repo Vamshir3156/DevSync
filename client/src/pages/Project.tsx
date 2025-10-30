@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { io, Socket } from "socket.io-client";
+import useSWR from "swr";
 import { api } from "../lib/api";
 import { useAuthStore } from "../store/auth";
 import TaskModal, { TaskForm } from "../components/TaskModal";
-import { Plus, Pencil } from "lucide-react";
+import { Plus } from "lucide-react";
 import {
   DragDropContext,
   Droppable,
@@ -27,12 +28,25 @@ type Message = {
   createdAt: string;
 };
 
+type Member = {
+  id: string;
+  role: string;
+  user: { id: string; email: string; name: string };
+};
+
 const API_URL =
   (import.meta as any).env?.VITE_API_URL || "http://localhost:5000";
+
+const fetcher = (url: string) => api.get(url).then((r) => r.data);
 
 export default function Project() {
   const { id: projectId } = useParams();
   const { user } = useAuthStore();
+
+  const { data: members } = useSWR<Member[]>(
+    projectId ? `/members/${projectId}` : null,
+    fetcher
+  );
 
   const [tasks, setTasks] = useState<Task[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -43,6 +57,9 @@ export default function Project() {
   const [openEdit, setOpenEdit] = useState(false);
   const [editing, setEditing] = useState<Task | null>(null);
   const [savingTask, setSavingTask] = useState(false);
+
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
 
   const socketRef = useRef<Socket | null>(null);
   const seenIdsRef = useRef<Set<string>>(new Set());
@@ -195,13 +212,21 @@ export default function Project() {
       <div className="lg:col-span-2 space-y-4">
         <header className="flex items-center justify-between">
           <h2 className="text-2xl font-bold">Board</h2>
-          <button
-            className="btn-primary flex items-center gap-2"
-            onClick={() => setOpenCreate(true)}
-          >
-            <Plus className="w-4 h-4" />
-            Add Task
-          </button>
+          <div className="flex items-center">
+            <button
+              className="btn-primary flex items-center gap-2"
+              onClick={() => setOpenCreate(true)}
+            >
+              <Plus className="w-4 h-4" />
+              Add Task
+            </button>
+            <button
+              onClick={() => setInviteOpen(true)}
+              className="ml-2 px-4 py-2 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white text-sm"
+            >
+              Invite
+            </button>
+          </div>
         </header>
 
         <DragDropContext onDragEnd={onDragEnd}>
@@ -265,6 +290,21 @@ export default function Project() {
       </div>
 
       <div className="space-y-4">
+        <h2 className="text-xl font-semibold mb-3 text-white">Members</h2>
+        <div className="space-y-1 mb-4">
+          {members?.map((m) => (
+            <div
+              key={m.user.id}
+              className="text-sm text-gray-300 bg-gray-700/40 rounded px-2 py-1"
+            >
+              {m.user.name} <span className="text-gray-400">({m.role})</span>
+            </div>
+          ))}
+          {!members?.length && (
+            <div className="text-sm text-gray-400">No members yet.</div>
+          )}
+        </div>
+
         <h2 className="text-2xl font-bold">Chat</h2>
         <div className="card h-[520px] flex flex-col">
           <div className="flex-1 overflow-y-auto space-y-3 pr-1">
@@ -322,6 +362,39 @@ export default function Project() {
         }}
         onSubmit={onEditTask}
       />
+
+      {inviteOpen && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+          <div className="bg-gray-900 p-6 rounded-xl w-[350px]">
+            <h2 className="text-lg font-semibold mb-4">Invite Member</h2>
+            <input
+              className="w-full p-2 rounded bg-gray-800 mb-3 text-white"
+              placeholder="Email"
+              value={inviteEmail}
+              onChange={(e) => setInviteEmail(e.target.value)}
+            />
+            <button
+              onClick={async () => {
+                if (!inviteEmail.trim() || !projectId) return;
+                await api.post(`/members/${projectId}`, {
+                  email: inviteEmail.trim(),
+                });
+                setInviteOpen(false);
+                setInviteEmail("");
+              }}
+              className="w-full py-2 bg-blue-500 rounded-md hover:bg-blue-600 text-white"
+            >
+              Send Invite
+            </button>
+            <button
+              onClick={() => setInviteOpen(false)}
+              className="w-full py-2 bg-gray-700 rounded-md mt-2 text-white"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
