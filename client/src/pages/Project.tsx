@@ -30,8 +30,13 @@ type Message = {
 
 type Member = {
   id: string;
-  role: string;
+  role: "ADMIN" | "MEMBER" | "VIEWER";
   user: { id: string; email: string; name: string };
+};
+
+type MembersResp = {
+  ownerId: string;
+  members: Member[];
 };
 
 const API_URL =
@@ -39,14 +44,28 @@ const API_URL =
 
 const fetcher = (url: string) => api.get(url).then((r) => r.data);
 
+const ROLES: Array<Member["role"]> = ["ADMIN", "MEMBER", "VIEWER"];
+
 export default function Project() {
   const { id: projectId } = useParams();
   const { user } = useAuthStore();
 
-  const { data: members } = useSWR<Member[]>(
+  const { data: membersResp, mutate: refetchMembers } = useSWR<MembersResp>(
     projectId ? `/members/${projectId}` : null,
     fetcher
   );
+
+  const ownerId = membersResp?.ownerId;
+  const rawMembers = membersResp?.members || [];
+
+  const myRole: "OWNER" | Member["role"] | null =
+    user?.id && ownerId && user.id === ownerId
+      ? "OWNER"
+      : rawMembers.find((m) => m.user.id === user?.id)?.role || null;
+
+  const isOwnerOrAdmin = myRole === "OWNER" || myRole === "ADMIN";
+
+  const members = rawMembers.filter((m) => m.user.id !== ownerId);
 
   const [tasks, setTasks] = useState<Task[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -207,6 +226,18 @@ export default function Project() {
     }
   };
 
+  const changeRole = async (targetUserId: string, role: Member["role"]) => {
+    if (!projectId) return;
+    await api.put(`/members/${projectId}/${targetUserId}`, { role });
+    await refetchMembers();
+  };
+
+  const removeMember = async (targetUserId: string) => {
+    if (!projectId) return;
+    await api.delete(`/members/${projectId}/${targetUserId}`);
+    await refetchMembers();
+  };
+
   return (
     <div className="grid lg:grid-cols-3 gap-6">
       <div className="lg:col-span-2 space-y-4">
@@ -291,16 +322,51 @@ export default function Project() {
 
       <div className="space-y-4">
         <h2 className="text-xl font-semibold mb-3 text-white">Members</h2>
-        <div className="space-y-1 mb-4">
-          {members?.map((m) => (
+
+        {user?.id === ownerId && (
+          <div className="text-sm text-emerald-300 bg-emerald-900/30 rounded px-2 py-1 mb-2">
+            You <span className="text-emerald-400">(OWNER)</span>
+          </div>
+        )}
+
+        <div className="space-y-2 mb-4">
+          {members.map((m) => (
             <div
               key={m.user.id}
-              className="text-sm text-gray-300 bg-gray-700/40 rounded px-2 py-1"
+              className="flex items-center justify-between gap-2 text-sm bg-gray-700/40 rounded px-2 py-1"
             >
-              {m.user.name} <span className="text-gray-400">({m.role})</span>
+              <div className="text-gray-200">
+                {m.user.name} <span className="text-gray-400">({m.role})</span>
+              </div>
+
+              {isOwnerOrAdmin ? (
+                <div className="flex items-center gap-2">
+                  <select
+                    className="bg-gray-800 text-gray-100 rounded px-2 py-1"
+                    value={m.role}
+                    onChange={(e) =>
+                      changeRole(m.user.id, e.target.value as Member["role"])
+                    }
+                  >
+                    {ROLES.map((r) => (
+                      <option key={r} value={r}>
+                        {r}
+                      </option>
+                    ))}
+                  </select>
+
+                  <button
+                    onClick={() => removeMember(m.user.id)}
+                    className="px-2 py-1 rounded bg-red-500 hover:bg-red-600 text-white"
+                    title="Remove member"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ) : null}
             </div>
           ))}
-          {!members?.length && (
+          {!members.length && (
             <div className="text-sm text-gray-400">No members yet.</div>
           )}
         </div>
@@ -381,6 +447,7 @@ export default function Project() {
                 });
                 setInviteOpen(false);
                 setInviteEmail("");
+                refetchMembers();
               }}
               className="w-full py-2 bg-blue-500 rounded-md hover:bg-blue-600 text-white"
             >
