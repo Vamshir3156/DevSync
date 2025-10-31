@@ -7,7 +7,7 @@ export default function Login() {
   const nav = useNavigate();
   const setAuth = useAuthStore((s) => s.setAuth);
   const [email, setEmail] = useState("demo@devsync.app");
-  const [password, setPassword] = useState("password123!");
+  const [password, setPassword] = useState("password123");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
