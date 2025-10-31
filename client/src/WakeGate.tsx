@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 type Props = { children: React.ReactNode };
 
 const API_BASE = (
-  import.meta.env.VITE_API_URL || "http://localhost:5000"
+  (import.meta as any).env?.VITE_API_URL || "http://localhost:5000"
 ).replace(/\/$/, "");
 const HEALTH_URL = `${API_BASE}/health`;
 
@@ -22,65 +22,79 @@ async function fetchWithTimeout(url: string, ms = 7000) {
 }
 
 export default function WakeGate({ children }: Props) {
-  const [waking, setWaking] = useState(true);
+  const alreadyReady =
+    typeof window !== "undefined" &&
+    sessionStorage.getItem("serverReady") === "1";
+
+  const [waking, setWaking] = useState(!alreadyReady);
   const [status, setStatus] = useState("Connecting to server…");
   const [attempt, setAttempt] = useState(1);
-
   const [remainingMs, setRemainingMs] = useState(45000);
 
-  const lockRef = useRef(false);
+  const under5LockRef = useRef(false);
+  useEffect(() => {
+    const onOffline = () => {
+      sessionStorage.removeItem("serverReady");
+      under5LockRef.current = false;
+      setAttempt(1);
+      setRemainingMs(45000);
+      setStatus("Reconnecting to server…");
+      setWaking(true);
+    };
+
+    window.addEventListener("server-offline", onOffline);
+    return () => window.removeEventListener("server-offline", onOffline);
+  }, []);
 
   useEffect(() => {
     if (!waking) return;
-    const t = setInterval(() => {
+    const tick = setInterval(() => {
       setRemainingMs((prev) => {
         let next = Math.max(0, prev - 1000);
 
-        if (prev > 5000 && next <= 5000 && !lockRef.current) {
-          lockRef.current = true;
+        if (prev > 5000 && next <= 5000 && !under5LockRef.current) {
+          under5LockRef.current = true;
           next += 30000;
           setAttempt((a) => a + 1);
         }
 
-        if (next > 5000 && lockRef.current) {
-          lockRef.current = false;
+        if (next > 5000 && under5LockRef.current) {
+          under5LockRef.current = false;
         }
 
         return next;
       });
     }, 1000);
-    return () => clearInterval(t);
+    return () => clearInterval(tick);
   }, [waking]);
 
   useEffect(() => {
+    if (!waking) return;
+
     let cancelled = false;
 
-    const wake = async () => {
-      let tries = 0;
-      while (!cancelled) {
-        tries++;
-
-        try {
-          const res = await fetchWithTimeout(HEALTH_URL, 7000);
-          if (res?.ok) {
-            await new Promise((r) => setTimeout(r, 400));
-            if (!cancelled) setWaking(false);
-            return;
+    const poll = async () => {
+      try {
+        const res = await fetchWithTimeout(HEALTH_URL, 7000);
+        if (res?.ok) {
+          if (!cancelled) {
+            sessionStorage.setItem("serverReady", "1");
+            setWaking(false);
           }
-        } catch {}
-
-        setStatus("Server waking up… Please wait 🙂");
-
-        const delay = Math.min(4000, 500 * Math.pow(2, Math.min(tries, 4)));
-        await new Promise((r) => setTimeout(r, delay));
-      }
+          return;
+        }
+      } catch {}
+      setStatus("Server waking up… Please wait 🙂");
     };
 
-    wake();
+    poll();
+    const iv = setInterval(poll, 2000);
+
     return () => {
       cancelled = true;
+      clearInterval(iv);
     };
-  }, []);
+  }, [waking]);
 
   if (waking) {
     return (
