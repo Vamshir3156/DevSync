@@ -6,13 +6,26 @@ import { api } from "../lib/api";
 import { useAuthStore } from "../store/auth";
 
 import TaskModal, { TaskForm } from "../components/TaskModal";
-import { Plus } from "lucide-react";
 import {
   DragDropContext,
   Droppable,
   Draggable,
   DropResult,
 } from "@hello-pangea/dnd";
+
+import {
+  FaPlus,
+  FaTrash,
+  FaEdit,
+  FaUserPlus,
+  FaCrown,
+  FaUserShield,
+  FaUsers,
+  FaPaperPlane,
+  FaComments,
+  FaListUl,
+  FaCheckCircle,
+} from "react-icons/fa";
 
 type Task = {
   id: string;
@@ -46,6 +59,23 @@ const API_URL =
 const fetcher = (url: string) => api.get(url).then((r) => r.data);
 
 const ROLES: Array<Member["role"]> = ["ADMIN", "MEMBER", "VIEWER"];
+
+const Pill = ({
+  children,
+  className = "",
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) => (
+  <span
+    className={
+      "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold " +
+      className
+    }
+  >
+    {children}
+  </span>
+);
 
 export default function Project() {
   const { id: projectId } = useParams();
@@ -266,18 +296,50 @@ export default function Project() {
     nav("/");
   };
 
+  const columnTitle = (key: keyof typeof columns) => {
+    switch (key) {
+      case "todo":
+        return (
+          <div className="flex items-center gap-2">
+            <FaListUl className="opacity-90" />
+            <span>To Do</span>
+          </div>
+        );
+      case "in_progress":
+        return (
+          <div className="flex items-center gap-2">
+            <FaComments className="opacity-90" />
+            <span>In Progress</span>
+          </div>
+        );
+      case "done":
+        return (
+          <div className="flex items-center gap-2">
+            <FaCheckCircle className="opacity-90" />
+            <span>Done</span>
+          </div>
+        );
+    }
+  };
+
   return (
     <div className="grid lg:grid-cols-3 gap-6">
       <div className="lg:col-span-2 space-y-4">
         <header className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold">Board</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-2xl font-bold">Board</h2>
+            <Pill className="bg-sky-500/15 text-sky-300 border border-sky-500/30">
+              {tasks.length} tasks
+            </Pill>
+          </div>
           <div className="flex items-center">
             {canAddTask && (
               <button
                 className="btn-primary flex items-center gap-2"
                 onClick={() => setOpenCreate(true)}
+                title="Add a new task"
               >
-                <Plus className="w-4 h-4" />
+                <FaPlus />
                 Add Task
               </button>
             )}
@@ -285,8 +347,10 @@ export default function Project() {
             {canInvite && (
               <button
                 onClick={() => setInviteOpen(true)}
-                className="ml-2 px-4 py-2 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white text-sm"
+                className="ml-2 px-4 py-2 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white text-sm flex items-center gap-2"
+                title="Invite a member"
               >
+                <FaUserPlus />
                 Invite
               </button>
             )}
@@ -294,9 +358,10 @@ export default function Project() {
             {canDeleteProject && (
               <button
                 onClick={deleteProject}
-                className="ml-2 px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm"
+                className="ml-2 px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm flex items-center gap-2"
                 title="Delete this project (owner only)"
               >
+                <FaTrash />
                 Delete
               </button>
             )}
@@ -314,8 +379,8 @@ export default function Project() {
                     className="card"
                   >
                     <div className="flex items-center justify-between mb-3">
-                      <div className="font-semibold capitalize">
-                        {col.replace("_", " ")}
+                      <div className="font-semibold capitalize flex items-center gap-2">
+                        {columnTitle(col)}
                       </div>
                       <span className="badge">{columns[col].length}</span>
                     </div>
@@ -342,24 +407,24 @@ export default function Project() {
                               <div className="flex items-center">
                                 {canEditTask && (
                                   <button
-                                    className="badge hover:opacity-80"
+                                    className="badge hover:opacity-80 flex items-center gap-1"
                                     title="Edit task"
                                     onClick={() => {
                                       setEditing(t);
                                       setOpenEdit(true);
                                     }}
                                   >
-                                    ✏️
+                                    <FaEdit />
                                   </button>
                                 )}
 
                                 {canDeleteTask && (
                                   <button
-                                    className="badge hover:opacity-80 ml-2 bg-red-500/20 text-red-300"
+                                    className="badge hover:opacity-80 ml-2 bg-red-500/20 text-red-300 flex items-center gap-1"
                                     title="Delete task"
                                     onClick={() => deleteTask(t.id)}
                                   >
-                                    🗑️
+                                    <FaTrash />
                                   </button>
                                 )}
                               </div>
@@ -379,11 +444,14 @@ export default function Project() {
       </div>
 
       <div className="space-y-4">
-        <h2 className="text-xl font-semibold mb-3 text-white">Members</h2>
+        <h2 className="text-xl font-semibold mb-3 text-white flex items-center gap-2">
+          <FaUsers /> Members
+        </h2>
 
         {membersResp?.owner && (
-          <div className="text-sm bg-gray-700/50 rounded px-2 py-1 mb-2 text-gray-200">
-            {membersResp.owner.name}{" "}
+          <div className="text-sm bg-gray-700/50 rounded px-2 py-1 mb-2 text-gray-200 inline-flex items-center gap-2">
+            <FaCrown className="text-yellow-300" />
+            {membersResp.owner.name}
             <span className="text-gray-400">(OWNER)</span>
           </div>
         )}
@@ -394,7 +462,10 @@ export default function Project() {
               key={m.user.id}
               className="flex items-center justify-between gap-2 text-sm bg-gray-700/40 rounded px-2 py-1"
             >
-              <div className="text-gray-200">
+              <div className="text-gray-200 flex items-center gap-2">
+                {m.role === "ADMIN" && (
+                  <FaUserShield className="text-indigo-300" />
+                )}
                 {m.user.name} <span className="text-gray-400">({m.role})</span>
               </div>
 
@@ -432,7 +503,9 @@ export default function Project() {
           )}
         </div>
 
-        <h2 className="text-2xl font-bold">Chat</h2>
+        <h2 className="text-2xl font-bold flex items-center gap-2">
+          <FaComments /> Chat
+        </h2>
         <div className="card h-[520px] flex flex-col">
           <div className="flex-1 overflow-y-auto space-y-3 pr-1">
             {messages.map((m) => (
@@ -457,7 +530,11 @@ export default function Project() {
                 if (e.key === "Enter") send();
               }}
             />
-            <button className="btn-primary" onClick={send}>
+            <button
+              className="btn-primary flex items-center gap-2"
+              onClick={send}
+            >
+              <FaPaperPlane />
               Send
             </button>
           </div>
@@ -494,7 +571,9 @@ export default function Project() {
       {inviteOpen && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
           <div className="bg-gray-900 p-6 rounded-xl w-[350px]">
-            <h2 className="text-lg font-semibold mb-4">Invite Member</h2>
+            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <FaUserPlus /> Invite Member
+            </h2>
             <input
               className="w-full p-2 rounded bg-gray-800 mb-3 text-white"
               placeholder="Email"
@@ -511,9 +590,9 @@ export default function Project() {
                 setInviteEmail("");
                 refetchMembers();
               }}
-              className="w-full py-2 bg-blue-500 rounded-md hover:bg-blue-600 text-white"
+              className="w-full py-2 bg-blue-500 rounded-md hover:bg-blue-600 text-white flex items-center justify-center gap-2"
             >
-              Send Invite
+              <FaUserPlus /> Send Invite
             </button>
             <button
               onClick={() => setInviteOpen(false)}
