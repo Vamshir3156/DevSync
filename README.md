@@ -1,18 +1,73 @@
+## 📛 Badges
 
-# DevSync — Real-Time Team Collaboration Platform (TypeScript)
+![React](https://img.shields.io/badge/Frontend-React-blue?logo=react)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)
+![Node](https://img.shields.io/badge/Backend-Node.js-3C873A?logo=node.js)
+![Express](https://img.shields.io/badge/API-Express-black?logo=express)
+![Socket.io](https://img.shields.io/badge/Realtime-Socket.io-010101?logo=socketdotio)
+![PostgreSQL](https://img.shields.io/badge/DB-PostgreSQL-0064a5?logo=postgresql)
+![Prisma](https://img.shields.io/badge/ORM-Prisma-0c344b?logo=prisma)
+![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white)
+![Tailwind](https://img.shields.io/badge/UI-TailwindCSS-38bdf8?logo=tailwindcss)
+![Vercel](https://img.shields.io/badge/Deploy-Vercel-black?logo=vercel)
+![Render](https://img.shields.io/badge/Deploy-Render-46E3B7?logo=render)
 
-**Full-stack TypeScript project** showcasing an end-to-end, production-style architecture:
-- **Frontend:** React + TypeScript + Vite + Tailwind + Zustand + React Router
-- **Backend:** Node.js (Express) + TypeScript + Socket.IO + PostgreSQL (Prisma)
-- **Auth:** JWT (access) with bcrypt hashing
-- **Realtime:** WebSockets (Socket.IO) for chat/activity stream
-- **Deployment:** Docker Compose for backend + DB; Vercel-friendly frontend
-- **Styling:** Tailwind with modern, glassmorphism-esque UI
 
-> Demo credentials after seeding:  
-> **email:** `demo@devsync.app` — **password:** `DevSync123!`
+#  DevSync — Real-Time Team Project Manager
 
----
+DevSync is a collaborative project management tool with real-time messaging and drag-and-drop task boards — similar to Trello & Notion teamwork.
+
+It supports roles, multi-user access, task workflow, and live collaboration using WebSockets.
+
+> Built as a full-stack portfolio project to demonstrate real-world engineering skills.
+
+### 🌐 Live Demo
+https://dev-sync-mu.vercel.app/
+
+##  Features
+
+### - Project & Team Management
+- Create & delete projects
+- Invite team members by email
+- Role-based permissions: Owner / Admin / Member / Viewer
+- Remove users or change roles
+
+### - Real-Time Kanban Board
+- Drag & drop tasks between To-Do / In-Progress / Done
+- Live updates for all active users
+- Create, edit, delete tasks
+
+### - Real-Time Chat
+- Project-based chat rooms
+- Instant messaging using Socket.io
+
+### - Authentication & Security
+- JWT authentication
+- Protected API routes
+- Prisma schema validation
+
+### - Backend Sleep Handling
+- Wake-screen overlay for free backend hosting
+- Auto connects once API wakes up
+
+##  Tech Stack
+
+### Frontend
+- React + Vite
+- TypeScript
+- Tailwind CSS
+- Zustand
+- SWR
+- Socket.io client
+- Kanban drag & drop
+
+### Backend
+- Node.js + Express
+- PostgreSQL
+- Prisma ORM
+- Socket.io
+- JWT auth
+- Docker support
 
 ## Quick Start
 
@@ -21,9 +76,6 @@
 ```bash
 # in the server folder
 cd server
-
-# copy env and adjust if needed
-cp .env.example .env
 
 # start Postgres via docker compose (from root or server)
 docker compose up -d db
@@ -52,26 +104,16 @@ docker compose up -d
 cd client
 npm install
 npm run dev
-# Vite will print a local dev URL, typically http://localhost:5173
 ```
 
-Open the app, log in with the demo credentials, and explore Projects, Kanban board, and Chat.
+## 🛡️ Roles & Permissions
 
----
+| Action | Owner | Admin | Member | Viewer |
+|-------|------|-------|--------|--------|
+| Create tasks | ✅ | ✅ | ✅ | ❌ |
+| Edit tasks   | ✅ | ✅ | ✅ | ❌ |
+| Delete tasks | ✅ | ✅ | ❌ | ❌ |
+| Manage roles | ✅ | ✅ | ❌ | ❌ |
+| Invite users | ✅ | ✅ | ❌ | ❌ |
+| Delete project | ✅ | ❌ | ❌ | ❌ |
 
-## Project Structure
-```
-devsync/
- ├── server/             # Node + TS + Prisma + Socket.IO
- ├── client/             # React + TS + Vite + Tailwind + Zustand
- ├── docker-compose.yml  # API + Postgres
- └── README.md
-```
-
-## Notes
-- The API URL defaults to `http://localhost:5000` (configure `VITE_API_URL` in `client/.env`).
-- Prisma schema defines `User`, `Project`, `Member`, `Task`, and `Message`.
-- Seed script creates one demo user, one project with tasks, and a few messages.
-- Socket.IO handles project room join + new message broadcasting.
-
-Enjoy building! ✨
